@@ -10,7 +10,8 @@ class JobsCollector:
     """Loads sample jobs from a local JSON file."""
 
     def collect(self) -> list[Opportunity]:
-        data_file = Path("data/sample_jobs.json")
+        project_root = Path(__file__).resolve().parents[3]
+        data_file = project_root / "data" / "sample_jobs.json"
 
         with data_file.open("r", encoding="utf-8") as file:
             jobs = json.load(file)
