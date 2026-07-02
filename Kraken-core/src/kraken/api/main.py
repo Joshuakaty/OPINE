@@ -1,16 +1,19 @@
 """FastAPI application for OPINE."""
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from kraken.intelligence import OpportunityIntelligence
 from kraken.match_explainer import MatchExplainer
 from kraken.matcher import OpportunityMatcher
 from kraken.profile.user_profile import UserProfile
+from kraken.resume import ResumeAnalyzer
+from kraken.resume_matcher import ResumeMatcher
 from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.8.0",
+    version="0.9.0",
     description="Opportunity Intelligence Engine API",
 )
 
@@ -18,9 +21,16 @@ service = DatabaseService()
 intelligence = OpportunityIntelligence()
 matcher = OpportunityMatcher()
 explainer = MatchExplainer()
+resume_analyzer = ResumeAnalyzer()
+resume_matcher = ResumeMatcher()
 
-# Temporary default profile.
-# Later this will come from authentication/database.
+
+class ResumeRequest(BaseModel):
+    """Resume analysis request."""
+
+    resume: str
+
+
 profile = UserProfile(
     name="Default User",
     skills=["Python", "FastAPI", "Docker"],
@@ -53,6 +63,39 @@ def refresh_jobs() -> dict[str, int | str]:
     }
 
 
+@app.post("/resume/analyze")
+def analyze_resume(request: ResumeRequest) -> dict:
+    """Analyze a resume and rank opportunities."""
+
+    skills = resume_analyzer.extract_skills(request.resume)
+
+    opportunities = service.get_cached()
+
+    matches = []
+
+    for opportunity in opportunities:
+        matches.append(
+            {
+                "title": opportunity.title,
+                "organization": opportunity.organization,
+                "resume_match": resume_matcher.match(
+                    request.resume,
+                    opportunity,
+                ),
+            }
+        )
+
+    matches.sort(
+        key=lambda item: item["resume_match"],
+        reverse=True,
+    )
+
+    return {
+        "skills": skills,
+        "top_matches": matches,
+    }
+
+
 @app.get("/jobs")
 def get_jobs(
     q: str | None = None,
@@ -64,7 +107,6 @@ def get_jobs(
 
     opportunities = service.get_cached()
 
-    # Search filter.
     if q:
         query = q.lower()
         opportunities = [
@@ -75,7 +117,6 @@ def get_jobs(
             or query in opportunity.organization.lower()
         ]
 
-    # Location filter.
     if location:
         opportunities = [
             opportunity
@@ -83,7 +124,6 @@ def get_jobs(
             if location.lower() in opportunity.location.lower()
         ]
 
-    # Company filter.
     if company:
         opportunities = [
             opportunity
@@ -91,7 +131,6 @@ def get_jobs(
             if company.lower() in opportunity.organization.lower()
         ]
 
-    # Minimum score filter.
     if min_score is not None:
         opportunities = [
             opportunity
