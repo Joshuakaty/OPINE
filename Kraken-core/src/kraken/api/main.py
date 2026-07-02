@@ -3,16 +3,32 @@
 from fastapi import FastAPI
 
 from kraken.intelligence import OpportunityIntelligence
+from kraken.match_explainer import MatchExplainer
+from kraken.matcher import OpportunityMatcher
+from kraken.profile.user_profile import UserProfile
 from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.7.0",
+    version="0.8.0",
     description="Opportunity Intelligence Engine API",
 )
 
 service = DatabaseService()
 intelligence = OpportunityIntelligence()
+matcher = OpportunityMatcher()
+explainer = MatchExplainer()
+
+# Temporary default profile.
+# Later this will come from authentication/database.
+profile = UserProfile(
+    name="Default User",
+    skills=["Python", "FastAPI", "Docker"],
+    desired_roles=["Backend Engineer", "Python Developer"],
+    preferred_locations=["Remote"],
+    remote_only=True,
+    minimum_salary="$120000",
+)
 
 
 @app.get("/")
@@ -90,9 +106,11 @@ def get_jobs(
             "organization": opportunity.organization,
             "location": opportunity.location,
             "salary": opportunity.salary,
-            "score": opportunity.score,
+            "opportunity_score": opportunity.score,
+            "personal_match": matcher.match(profile, opportunity),
             "source": opportunity.source,
             "insights": intelligence.analyze(opportunity),
+            "why_this_matches": explainer.explain(profile, opportunity),
         }
         for opportunity in opportunities
     ]

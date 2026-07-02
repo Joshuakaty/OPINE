@@ -1,4 +1,4 @@
-"""Tests for the filter API."""
+"""Tests for filtering opportunities."""
 
 from unittest.mock import patch
 
@@ -10,9 +10,11 @@ from kraken.opportunity import Opportunity
 client = TestClient(app)
 
 
-@patch("kraken.collectors.remoteok.RemoteOKCollector.collect")
-def test_filter_by_company_and_score(mock_collect) -> None:
-    mock_collect.return_value = [
+@patch("kraken.api.main.service.get_cached")
+def test_filter_by_company_and_score(mock_get_cached) -> None:
+    """Filtering by company and score should work."""
+
+    mock_get_cached.return_value = [
         Opportunity(
             id="1",
             title="Python Developer",
@@ -22,6 +24,7 @@ def test_filter_by_company_and_score(mock_collect) -> None:
             location="Remote",
             description="Python backend",
             salary="$120000",
+            score=100,
         ),
         Opportunity(
             id="2",
@@ -32,6 +35,7 @@ def test_filter_by_company_and_score(mock_collect) -> None:
             location="Remote",
             description="Frontend React",
             salary="$90000",
+            score=40,
         ),
     ]
 
@@ -43,4 +47,8 @@ def test_filter_by_company_and_score(mock_collect) -> None:
 
     assert len(jobs) == 1
     assert jobs[0]["organization"] == "OpenAI"
-    assert jobs[0]["score"] == 100
+    assert jobs[0]["opportunity_score"] == 100
+
+    assert "personal_match" in jobs[0]
+    assert "insights" in jobs[0]
+    assert "why_this_matches" in jobs[0]

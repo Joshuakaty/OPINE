@@ -37,4 +37,8 @@ def test_get_jobs(mock_get_cached) -> None:
     assert len(jobs) == 1
     assert jobs[0]["title"] == "Software Engineer"
     assert jobs[0]["organization"] == "OpenAI"
-    assert jobs[0]["score"] == 100
+    assert jobs[0]["opportunity_score"] == 100
+
+    assert "personal_match" in jobs[0]
+    assert "insights" in jobs[0]
+    assert "why_this_matches" in jobs[0]
