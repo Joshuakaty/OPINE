@@ -9,11 +9,13 @@ from kraken.matcher import OpportunityMatcher
 from kraken.profile.user_profile import UserProfile
 from kraken.resume import ResumeAnalyzer
 from kraken.resume_matcher import ResumeMatcher
+from kraken.schemas.jobs import JobResponse
+from kraken.schemas.resume import ResumeAnalysisResponse, ResumeMatch
 from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.9.0",
+    version="0.9.1",
     description="Opportunity Intelligence Engine API",
 )
 
@@ -63,46 +65,44 @@ def refresh_jobs() -> dict[str, int | str]:
     }
 
 
-@app.post("/resume/analyze")
-def analyze_resume(request: ResumeRequest) -> dict:
+@app.post("/resume/analyze", response_model=ResumeAnalysisResponse)
+def analyze_resume(request: ResumeRequest) -> ResumeAnalysisResponse:
     """Analyze a resume and rank opportunities."""
 
     skills = resume_analyzer.extract_skills(request.resume)
 
     opportunities = service.get_cached()
 
-    matches = []
-
-    for opportunity in opportunities:
-        matches.append(
-            {
-                "title": opportunity.title,
-                "organization": opportunity.organization,
-                "resume_match": resume_matcher.match(
-                    request.resume,
-                    opportunity,
-                ),
-            }
+    matches = [
+        ResumeMatch(
+            title=opportunity.title,
+            organization=opportunity.organization,
+            resume_match=resume_matcher.match(
+                request.resume,
+                opportunity,
+            ),
         )
+        for opportunity in opportunities
+    ]
 
     matches.sort(
-        key=lambda item: item["resume_match"],
+        key=lambda item: item.resume_match,
         reverse=True,
     )
 
-    return {
-        "skills": skills,
-        "top_matches": matches,
-    }
+    return ResumeAnalysisResponse(
+        skills=skills,
+        top_matches=matches,
+    )
 
 
-@app.get("/jobs")
+@app.get("/jobs", response_model=list[JobResponse])
 def get_jobs(
     q: str | None = None,
     location: str | None = None,
     company: str | None = None,
     min_score: int | None = None,
-) -> list[dict]:
+) -> list[JobResponse]:
     """Return cached ranked opportunities."""
 
     opportunities = service.get_cached()
@@ -139,17 +139,17 @@ def get_jobs(
         ]
 
     return [
-        {
-            "id": opportunity.id,
-            "title": opportunity.title,
-            "organization": opportunity.organization,
-            "location": opportunity.location,
-            "salary": opportunity.salary,
-            "opportunity_score": opportunity.score,
-            "personal_match": matcher.match(profile, opportunity),
-            "source": opportunity.source,
-            "insights": intelligence.analyze(opportunity),
-            "why_this_matches": explainer.explain(profile, opportunity),
-        }
+        JobResponse(
+            id=opportunity.id,
+            title=opportunity.title,
+            organization=opportunity.organization,
+            location=opportunity.location,
+            salary=opportunity.salary,
+            opportunity_score=opportunity.score,
+            personal_match=matcher.match(profile, opportunity),
+            source=opportunity.source,
+            insights=intelligence.analyze(opportunity),
+            why_this_matches=explainer.explain(profile, opportunity),
+        )
         for opportunity in opportunities
     ]
