@@ -6,7 +6,7 @@ from kraken.opportunity import Opportunity
 from kraken.services.database_service import DatabaseService
 
 
-@patch("kraken.collectors.remoteok.RemoteOKCollector.collect")
+@patch("kraken.services.database_service.CollectorManager.collect")
 def test_refresh_returns_ranked_jobs(mock_collect, tmp_path) -> None:
     """Refreshing should collect, score, save and return opportunities."""
 

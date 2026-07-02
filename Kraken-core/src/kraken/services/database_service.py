@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from kraken.collectors.arbeitnow import ArbeitnowCollector
+from kraken.collectors.manager import CollectorManager
 from kraken.collectors.remoteok import RemoteOKCollector
 from kraken.db.database import Database
 from kraken.opportunity import Opportunity
@@ -14,7 +16,11 @@ class DatabaseService:
 
     def __init__(self, db_path: str = "opine.db") -> None:
         self.database = Database(db_path)
-        self.collector = RemoteOKCollector()
+
+        self.manager = CollectorManager()
+        self.manager.add_collector(RemoteOKCollector())
+        self.manager.add_collector(ArbeitnowCollector())
+
         self.scorer = OpportunityScorer()
         self.ranker = OpportunityRanker()
 
@@ -22,11 +28,11 @@ class DatabaseService:
 
     def refresh(self) -> list[Opportunity]:
         """
-        Collect fresh opportunities, score them,
-        save them to SQLite and return ranked results.
+        Collect fresh opportunities from all collectors,
+        score them, save them and return ranked results.
         """
 
-        opportunities = self.collector.collect()
+        opportunities = self.manager.collect()
 
         for opportunity in opportunities:
             self.scorer.score(opportunity)
@@ -37,8 +43,6 @@ class DatabaseService:
     def get_cached(self) -> list[Opportunity]:
         """
         Return opportunities stored in SQLite.
-
-        No internet connection is required.
         """
 
         opportunities = self.database.load_opportunities()
@@ -47,13 +51,13 @@ class DatabaseService:
 
     def refresh_and_cache(self) -> int:
         """
-        Refresh the local database.
+        Refresh the local database from every collector.
 
         Returns:
             Number of opportunities collected.
         """
 
-        opportunities = self.collector.collect()
+        opportunities = self.manager.collect()
 
         for opportunity in opportunities:
             self.scorer.score(opportunity)
