@@ -2,15 +2,17 @@
 
 from fastapi import FastAPI
 
+from kraken.intelligence import OpportunityIntelligence
 from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.6.0",
+    version="0.7.0",
     description="Opportunity Intelligence Engine API",
 )
 
 service = DatabaseService()
+intelligence = OpportunityIntelligence()
 
 
 @app.get("/")
@@ -89,6 +91,8 @@ def get_jobs(
             "location": opportunity.location,
             "salary": opportunity.salary,
             "score": opportunity.score,
+            "source": opportunity.source,
+            "insights": intelligence.analyze(opportunity),
         }
         for opportunity in opportunities
     ]
