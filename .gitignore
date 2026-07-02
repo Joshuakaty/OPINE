@@ -1,0 +1,21 @@
+# Python virtual environment
+.venv/
+
+# Backup copy
+Kraken-core-Backup/
+
+# Archived Git repository
+.git-old/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Pytest
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
