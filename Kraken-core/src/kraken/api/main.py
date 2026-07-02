@@ -2,13 +2,11 @@
 
 from fastapi import FastAPI
 
-from kraken.collectors.remoteok import RemoteOKCollector
-from kraken.ranking import OpportunityRanker
-from kraken.scoring import OpportunityScorer
+from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.4.0",
+    version="0.5.0",
     description="Opportunity Intelligence Engine API",
 )
 
@@ -32,15 +30,10 @@ def get_jobs(
 ) -> list[dict]:
     """Return ranked opportunities."""
 
-    collector = RemoteOKCollector()
-    scorer = OpportunityScorer()
-    ranker = OpportunityRanker()
+    service = DatabaseService()
 
-    opportunities = collector.collect()
-
-    # Score every opportunity first.
-    for opportunity in opportunities:
-        scorer.score(opportunity)
+    # Collect, score, save, and rank jobs.
+    opportunities = service.refresh()
 
     # Search filter.
     if q:
@@ -76,8 +69,6 @@ def get_jobs(
             for opportunity in opportunities
             if opportunity.score >= min_score
         ]
-
-    opportunities = ranker.rank(opportunities)
 
     return [
         {
