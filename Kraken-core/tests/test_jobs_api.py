@@ -1,7 +1,5 @@
 """Tests for the jobs API endpoint."""
 
-"""Tests for the jobs API endpoint."""
-
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -12,9 +10,11 @@ from kraken.opportunity import Opportunity
 client = TestClient(app)
 
 
-@patch("kraken.collectors.remoteok.RemoteOKCollector.collect")
-def test_get_jobs(mock_collect) -> None:
-    mock_collect.return_value = [
+@patch("kraken.api.main.service.get_cached")
+def test_get_jobs(mock_get_cached) -> None:
+    """GET /jobs should return cached opportunities."""
+
+    mock_get_cached.return_value = [
         Opportunity(
             id="1",
             title="Software Engineer",
@@ -23,6 +23,7 @@ def test_get_jobs(mock_collect) -> None:
             organization="OpenAI",
             location="Remote",
             salary="$120000",
+            score=100,
             description="AI Engineer",
         )
     ]

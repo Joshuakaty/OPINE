@@ -6,9 +6,11 @@ from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.5.0",
+    version="0.6.0",
     description="Opportunity Intelligence Engine API",
 )
+
+service = DatabaseService()
 
 
 @app.get("/")
@@ -21,6 +23,18 @@ def root() -> dict[str, str]:
     }
 
 
+@app.post("/refresh")
+def refresh_jobs() -> dict[str, int | str]:
+    """Refresh the local opportunity database."""
+
+    count = service.refresh_and_cache()
+
+    return {
+        "status": "success",
+        "jobs_collected": count,
+    }
+
+
 @app.get("/jobs")
 def get_jobs(
     q: str | None = None,
@@ -28,12 +42,9 @@ def get_jobs(
     company: str | None = None,
     min_score: int | None = None,
 ) -> list[dict]:
-    """Return ranked opportunities."""
+    """Return cached ranked opportunities."""
 
-    service = DatabaseService()
-
-    # Collect, score, save, and rank jobs.
-    opportunities = service.refresh()
+    opportunities = service.get_cached()
 
     # Search filter.
     if q:
