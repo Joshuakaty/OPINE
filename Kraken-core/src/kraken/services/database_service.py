@@ -6,6 +6,7 @@ from kraken.collectors.arbeitnow import ArbeitnowCollector
 from kraken.collectors.manager import CollectorManager
 from kraken.collectors.remoteok import RemoteOKCollector
 from kraken.db.database import Database
+from kraken.deduplication import deduplicate
 from kraken.opportunity import Opportunity
 from kraken.ranking import OpportunityRanker
 from kraken.scoring import OpportunityScorer
@@ -29,10 +30,13 @@ class DatabaseService:
     def refresh(self) -> list[Opportunity]:
         """
         Collect fresh opportunities from all collectors,
-        score them, save them and return ranked results.
+        remove duplicates, score them,
+        save them and return ranked results.
         """
 
         opportunities = self.manager.collect()
+
+        opportunities = deduplicate(opportunities)
 
         for opportunity in opportunities:
             self.scorer.score(opportunity)
@@ -54,10 +58,12 @@ class DatabaseService:
         Refresh the local database from every collector.
 
         Returns:
-            Number of opportunities collected.
+            Number of unique opportunities collected.
         """
 
         opportunities = self.manager.collect()
+
+        opportunities = deduplicate(opportunities)
 
         for opportunity in opportunities:
             self.scorer.score(opportunity)
