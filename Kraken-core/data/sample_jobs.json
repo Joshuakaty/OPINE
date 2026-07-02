@@ -1,0 +1,22 @@
+[
+  {
+    "id": "job-001",
+    "title": "Software Engineer",
+    "organization": "OpenAI",
+    "location": "Remote",
+    "source": "Sample",
+    "url": "https://example.com/jobs/1",
+    "description": "Build AI applications.",
+    "salary": "$120000"
+  },
+  {
+    "id": "job-002",
+    "title": "Backend Python Developer",
+    "organization": "Kraken Labs",
+    "location": "Accra",
+    "source": "Sample",
+    "url": "https://example.com/jobs/2",
+    "description": "Develop backend services.",
+    "salary": "$90000"
+  }
+]
