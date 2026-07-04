@@ -3,29 +3,69 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from kraken.dashboard import Dashboard
 from kraken.intelligence import OpportunityIntelligence
 from kraken.match_explainer import MatchExplainer
 from kraken.matcher import OpportunityMatcher
 from kraken.profile.user_profile import UserProfile
 from kraken.resume import ResumeAnalyzer
 from kraken.resume_matcher import ResumeMatcher
+from kraken.resume_profile import ResumeProfile
 from kraken.schemas.jobs import JobResponse
 from kraken.schemas.resume import ResumeAnalysisResponse, ResumeMatch
 from kraken.services.database_service import DatabaseService
 
 app = FastAPI(
     title="OPINE API",
-    version="0.9.1",
+    version="1.0.0",
     description="Opportunity Intelligence Engine API",
 )
 
+# -----------------------------------------------------------------------------
+# Services
+# -----------------------------------------------------------------------------
+
 service = DatabaseService()
+dashboard = Dashboard()
+
 intelligence = OpportunityIntelligence()
 matcher = OpportunityMatcher()
 explainer = MatchExplainer()
+
 resume_analyzer = ResumeAnalyzer()
 resume_matcher = ResumeMatcher()
 
+# -----------------------------------------------------------------------------
+# Demo Resume Profile
+# -----------------------------------------------------------------------------
+
+resume_profile = ResumeProfile()
+
+resume_profile.update(
+    """
+    Python
+    FastAPI
+    Docker
+    PostgreSQL
+    """
+)
+
+profile = UserProfile(
+    name="Default User",
+    skills=["Python", "FastAPI", "Docker"],
+    desired_roles=[
+        "Backend Engineer",
+        "Python Developer",
+    ],
+    preferred_locations=["Remote"],
+    remote_only=True,
+    minimum_salary="$120000",
+)
+
+
+# -----------------------------------------------------------------------------
+# Request Models
+# -----------------------------------------------------------------------------
 
 class ResumeRequest(BaseModel):
     """Resume analysis request."""
@@ -33,19 +73,14 @@ class ResumeRequest(BaseModel):
     resume: str
 
 
-profile = UserProfile(
-    name="Default User",
-    skills=["Python", "FastAPI", "Docker"],
-    desired_roles=["Backend Engineer", "Python Developer"],
-    preferred_locations=["Remote"],
-    remote_only=True,
-    minimum_salary="$120000",
-)
-
+# -----------------------------------------------------------------------------
+# Routes
+# -----------------------------------------------------------------------------
 
 @app.get("/")
 def root() -> dict[str, str]:
     """Health endpoint."""
+
     return {
         "name": "OPINE API",
         "status": "running",
@@ -67,7 +102,7 @@ def refresh_jobs() -> dict[str, int | str]:
 
 @app.post("/resume/analyze", response_model=ResumeAnalysisResponse)
 def analyze_resume(request: ResumeRequest) -> ResumeAnalysisResponse:
-    """Analyze a resume and rank opportunities."""
+    """Analyze a resume."""
 
     skills = resume_analyzer.extract_skills(request.resume)
 
@@ -86,13 +121,25 @@ def analyze_resume(request: ResumeRequest) -> ResumeAnalysisResponse:
     ]
 
     matches.sort(
-        key=lambda item: item.resume_match,
+        key=lambda match: match.resume_match,
         reverse=True,
     )
 
     return ResumeAnalysisResponse(
         skills=skills,
         top_matches=matches,
+    )
+
+
+@app.get("/dashboard")
+def get_dashboard() -> dict:
+    """Return a personalized dashboard."""
+
+    opportunities = service.get_cached()
+
+    return dashboard.build(
+        resume_profile,
+        opportunities,
     )
 
 
@@ -107,8 +154,10 @@ def get_jobs(
 
     opportunities = service.get_cached()
 
+    # Search filter
     if q:
         query = q.lower()
+
         opportunities = [
             opportunity
             for opportunity in opportunities
@@ -117,6 +166,7 @@ def get_jobs(
             or query in opportunity.organization.lower()
         ]
 
+    # Location filter
     if location:
         opportunities = [
             opportunity
@@ -124,6 +174,7 @@ def get_jobs(
             if location.lower() in opportunity.location.lower()
         ]
 
+    # Company filter
     if company:
         opportunities = [
             opportunity
@@ -131,6 +182,7 @@ def get_jobs(
             if company.lower() in opportunity.organization.lower()
         ]
 
+    # Minimum score filter
     if min_score is not None:
         opportunities = [
             opportunity
@@ -146,10 +198,16 @@ def get_jobs(
             location=opportunity.location,
             salary=opportunity.salary,
             opportunity_score=opportunity.score,
-            personal_match=matcher.match(profile, opportunity),
+            personal_match=matcher.match(
+                profile,
+                opportunity,
+            ),
             source=opportunity.source,
             insights=intelligence.analyze(opportunity),
-            why_this_matches=explainer.explain(profile, opportunity),
+            why_this_matches=explainer.explain(
+                profile,
+                opportunity,
+            ),
         )
         for opportunity in opportunities
     ]
